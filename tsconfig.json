@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+
+    // Node 24 executa .ts nativamente por type stripping.
+    // Não emitimos JS: o tsc serve só para checagem de tipos.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+
+    // Garante que só usamos sintaxe que o Node consegue apagar.
+    // Barra `enum`, `namespace` e parameter properties — que quebrariam
+    // em runtime mesmo compilando sem erro.
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "eval/**/*.ts"]
+}

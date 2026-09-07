@@ -1,0 +1,76 @@
+# doAPS
+
+Automação de questionários **APS** no AVA (Moodle) da UniEVANGÉLICA, com
+Playwright para navegação e um LLM restrito a uma única tarefa: ler uma
+questão e devolver a alternativa.
+
+> Projeto acadêmico, desafio proposto em sala. O fluxo é **determinístico
+> por padrão** e não envia nada sem `--submit` explícito.
+
+## Princípio
+
+A IA **não navega, não decide e não clica.** Ela recebe enunciado e
+alternativas em texto puro e devolve uma letra com nível de confiança.
+Login, varredura, extração, preenchimento e envio são todos código.
+
+```
+auth → discover → scan → triage → attempt → extract
+                                               ↓
+                                    [ IA: questão → letra ]
+                                               ↓
+                                    fill → submit → report
+```
+
+Detalhes em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+
+## Requisitos
+
+- **Node.js ≥ 24** (roda TypeScript nativamente — sem build)
+- **Google Chrome** instalado (o projeto dirige o Chrome do sistema)
+
+## Instalação
+
+```bash
+npm install
+cp .env.example .env    # preencha suas credenciais
+npm run browser:check   # valida o ambiente, sem usar credenciais
+```
+
+## Uso
+
+```bash
+npm run dry-run    # abre, extrai, resolve e PREENCHE — não envia
+npm run offline    # roda contra HTML salvo, sem navegador nem tentativa
+npm start          # fluxo completo (envio exige --submit)
+npm test           # testes unitários
+npm run typecheck
+```
+
+O **modo padrão não envia nada.** `--dry-run` deixa a tentativa preenchida
+e aberta no Moodle (que salva rascunho sozinho) para você revisar e enviar
+à mão. `--submit` é opt-in e pede confirmação.
+
+## Segurança
+
+Este repositório é público. Nada sensível entra nele:
+
+| Arquivo | Por quê |
+|---|---|
+| `.env` | credenciais e chaves de API |
+| `.auth/state.json` | **cookie de sessão ativo** — vale como a sua senha por 4h |
+| `tests/fixtures/` | HTML real com enunciados de prova e dados pessoais |
+| `runs/`, `cache/` | respostas e histórico |
+
+Três camadas de proteção: `.gitignore`, *redaction* no logger, e um hook de
+pre-commit que bloqueia arquivos proibidos e padrões de segredo. O hook é
+ativado por `git config core.hooksPath .githooks` — já configurado se você
+clonou e rodou `npm install`.
+
+> Se um segredo vazar em algum commit, **rotacione a credencial**.
+> `.gitignore` não apaga histórico.
+
+## Estado
+
+Fase 1 de 7. Feito: esqueleto, configuração validada, navegador,
+ritmo humano, barreiras de segredo. Roadmap completo em
+[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) §13.

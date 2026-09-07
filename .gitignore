@@ -1,0 +1,39 @@
+# ─── SEGREDOS — NUNCA COMMITAR ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# Estado de sessão do Playwright.
+# ⚠ Contém o cookie MoodleSession ATIVO. Equivale à sua senha por 4h.
+.auth/
+
+# ─── DADOS SENSÍVEIS / PESSOAIS ───────────────────────────────────────
+# HTML real capturado: contém enunciados de prova e dados do aluno
+tests/fixtures/
+fixtures/
+# Gabaritos usados na avaliação
+eval/answer-key.json
+# Histórico de execuções e respostas
+runs/
+cache/
+# Imagens baixadas das questões
+.media/
+
+# ─── BUILD / DEPS ─────────────────────────────────────────────────────
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ─── PLAYWRIGHT ───────────────────────────────────────────────────────
+playwright-report/
+test-results/
+trace/
+*.zip
+
+# ─── LOGS / SO / EDITOR ───────────────────────────────────────────────
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

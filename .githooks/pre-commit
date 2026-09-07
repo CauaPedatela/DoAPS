@@ -1,0 +1,58 @@
+#!/bin/sh
+# doAPS — barreira contra vazamento de segredo.
+# O repositório é público: um segredo commitado é indexado em minutos.
+set -e
+
+FALHOU=0
+vermelho() { printf '\033[31m%s\033[0m\n' "$1"; }
+
+# ─── 1. Arquivos que nunca podem ser rastreados ──────────────────────
+PROIBIDOS=$(git diff --cached --name-only |
+  grep -E '(^|/)\.env$|(^|/)\.env\.[^.]*$|^\.auth/|^tests/fixtures/|^fixtures/|^runs/|^cache/|answer-key\.json$' |
+  grep -v '\.env\.example$' || true)
+
+if [ -n "$PROIBIDOS" ]; then
+  vermelho "✗ Arquivo proibido no commit:"
+  echo "$PROIBIDOS" | sed 's/^/    /'
+  echo "  Remova com: git rm --cached <arquivo>"
+  FALHOU=1
+fi
+
+# ─── 2. Varredura de padrões de segredo no conteúdo staged ───────────
+# Roda sempre, independente do gitleaks estar instalado.
+PADROES='sk-ant-[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{30,}|gh[pousr]_[A-Za-z0-9]{30,}|MoodleSession=[a-z0-9]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+
+for arquivo in $(git diff --cached --name-only --diff-filter=ACM); do
+  [ -f "$arquivo" ] || continue
+  ACHADO=$(git show ":$arquivo" 2>/dev/null | grep -nEo "$PADROES" || true)
+  if [ -n "$ACHADO" ]; then
+    vermelho "✗ Padrão de segredo em $arquivo:"
+    echo "$ACHADO" | head -3 | sed 's/^/    /'
+    FALHOU=1
+  fi
+done
+
+# ─── 3. Credencial preenchida no .env.example ────────────────────────
+if git diff --cached --name-only | grep -q '\.env\.example$'; then
+  PREENCHIDO=$(git show ':.env.example' |
+    grep -E '^(MOODLE_USERNAME|MOODLE_PASSWORD|GEMINI_API_KEY|ANTHROPIC_API_KEY)=.+' || true)
+  if [ -n "$PREENCHIDO" ]; then
+    vermelho "✗ .env.example tem valor preenchido — deve ficar vazio:"
+    echo "$PREENCHIDO" | sed 's/=.*/=<valor removido do aviso>/' | sed 's/^/    /'
+    FALHOU=1
+  fi
+fi
+
+# ─── 4. gitleaks, se disponível (camada extra, não obrigatória) ──────
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --no-banner || FALHOU=1
+fi
+
+if [ "$FALHOU" -ne 0 ]; then
+  vermelho ""
+  vermelho "Commit bloqueado. Se um segredo real vazou em algum momento,"
+  vermelho "ROTACIONE a credencial — .gitignore não apaga o histórico."
+  exit 1
+fi
+
+exit 0
