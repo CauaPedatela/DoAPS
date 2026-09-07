@@ -8,6 +8,8 @@ import {
   contarPaginas,
   aguardarQuestoes,
   avancarSubmetendo,
+  enviarTentativa,
+  confirmarEnvio,
 } from '../moodle/attempt.ts';
 import { extrairQuestoes } from '../extraction/extract.ts';
 import { preencher, type ResultadoPreenchimento } from '../filling/index.ts';
@@ -133,7 +135,13 @@ export async function executarAPS(
     const esperou = await enforceFloor(t0, cfg.MIN_QUIZ_MINUTES * 60_000);
     if (esperou > 0) logger.info({ esperouMs: esperou }, 'piso de tempo aplicado');
 
-    if (opts.submeter) logger.warn('envio ainda não implementado — tentativa fica aberta');
+    let enviado = false;
+    if (opts.submeter) {
+      await enviarTentativa(page, cfg, attempt, item.cmid);
+      const c = await confirmarEnvio(page, cfg, item.cmid);
+      enviado = c.finalizada;
+      logger.warn({ finalizada: c.finalizada, nota: c.nota }, 'tentativa enviada');
+    }
 
     return {
       cmid: item.cmid,
@@ -147,7 +155,7 @@ export async function executarAPS(
       uso,
       cacheAcertos: acertosCache,
       chamadasIA: chamadas,
-      enviado: false,
+      enviado,
       segundos: Math.round((Date.now() - t0) / 1000),
     };
   } finally {
