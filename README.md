@@ -62,9 +62,14 @@ Este repositório é público. Nada sensível entra nele:
 | `runs/`, `cache/` | respostas e histórico |
 
 Três camadas de proteção: `.gitignore`, *redaction* no logger, e um hook de
-pre-commit que bloqueia arquivos proibidos e padrões de segredo. O hook é
-ativado por `git config core.hooksPath .githooks` — já configurado se você
-clonou e rodou `npm install`.
+pre-commit que bloqueia arquivos proibidos e padrões de segredo. O `npm
+install` roda o script `prepare`, que ativa o hook via
+`git config core.hooksPath .githooks` — então ele passa a valer para
+qualquer clone, não só para a máquina onde foi criado.
+
+A varredura de segredos do hook é própria e roda sempre; se você tiver
+[gitleaks](https://github.com/gitleaks/gitleaks) instalado, ele entra como
+camada extra.
 
 > Se um segredo vazar em algum commit, **rotacione a credencial**.
 > `.gitignore` não apaga histórico.
