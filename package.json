@@ -14,7 +14,7 @@
     "offline": "node --env-file=.env src/cli.ts --offline",
     "eval": "node --env-file=.env eval/run-eval.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-test-module-mocks 'tests/**/*.spec.ts'",
+    "test": "node --test \"tests/**/*.spec.ts\"",
     "browser:check": "node src/core/browser-check.ts"
   },
   "dependencies": {

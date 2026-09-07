@@ -18,6 +18,8 @@ export type ItemAPS = {
   url: string;
   /** Estava no índice lateral? Se não, provavelmente encerrada/oculta. */
   noIndice: boolean;
+  /** true=feita, false=pendente, null=curso sem rastreamento de conclusão. */
+  concluida: boolean | null;
 };
 
 /**
@@ -40,11 +42,27 @@ export async function varrerAPS(
     const limpar = (s: string | null): string => (s ?? '').replace(/\s+/g, ' ').trim();
     const h1 = document.querySelector('h1');
 
+    /**
+     * Estado de conclusão, lido do próprio índice do Moodle:
+     *   <li data-for="cm" data-id="2886250">
+     *     <span data-for="cm_completion" data-value="1"> …
+     * data-value 1 = feito, 0 = pendente, ausente = curso sem
+     * rastreamento de conclusão (aí não dá para afirmar nada).
+     */
+    const concluidaDe = (a: HTMLAnchorElement): boolean | null => {
+      const li = a.closest('[data-for="cm"]');
+      const span = li?.querySelector('[data-for="cm_completion"]');
+      const v = span?.getAttribute('data-value');
+      if (v === null || v === undefined) return null;
+      return v === '1';
+    };
+
     const coletar = (sel: string, origem: 'indice' | 'corpo') =>
       Array.from(document.querySelectorAll<HTMLAnchorElement>(sel)).map((a) => ({
         texto: limpar(a.textContent),
         href: a.href,
         origem,
+        concluida: origem === 'indice' ? concluidaDe(a) : null,
       }));
 
     return {
@@ -83,6 +101,7 @@ export async function varrerAPS(
       tipo,
       url: l.href,
       noIndice: l.origem === 'indice',
+      concluida: l.concluida,
     });
   }
 
@@ -91,7 +110,9 @@ export async function varrerAPS(
   const porCmid = new Map<number, ItemAPS>();
   for (const i of itens) {
     const anterior = porCmid.get(i.cmid);
-    if (!anterior || (i.noIndice && !anterior.noIndice)) porCmid.set(i.cmid, i);
+    if (!anterior || (i.noIndice && !anterior.noIndice)) {
+      porCmid.set(i.cmid, { ...i, concluida: i.concluida ?? anterior?.concluida ?? null });
+    }
   }
   const unicos = [...porCmid.values()].sort((a, b) => a.numero - b.numero);
 

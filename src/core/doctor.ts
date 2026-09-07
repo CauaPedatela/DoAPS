@@ -22,7 +22,6 @@ try {
   console.log('  AI_MODEL         :', cfg.AI_MODEL);
   console.log('  GEMINI_API_KEY   :', mask(cfg.GEMINI_API_KEY));
   console.log('  BROWSER_CHANNEL  :', cfg.BROWSER_CHANNEL);
-  console.log('  ATTEMPT_RESERVE  :', cfg.ATTEMPT_RESERVE, '(tentativas nunca consumidas)');
   console.log('  MIN_QUIZ_MINUTES :', cfg.MIN_QUIZ_MINUTES);
 } catch (err) {
   console.error(err instanceof Error ? err.message : err);

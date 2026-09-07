@@ -38,8 +38,6 @@ const Schema = z
     AI_MODEL: z.string().default('gemini-3.8-flash'),
 
     // ─── Segurança operacional ───────────────────────────────────────
-    /** Tentativas que o robô nunca consome. 1 = sempre sobra uma pra você. */
-    ATTEMPT_RESERVE: z.coerce.number().int().min(0).default(1),
     /** Piso de tempo por questionário. Ver docs/ARQUITETURA.md §8. */
     MIN_QUIZ_MINUTES: z.coerce.number().min(0).default(8),
     /** Não abrir tentativa se faltar menos que isto para o prazo. */
