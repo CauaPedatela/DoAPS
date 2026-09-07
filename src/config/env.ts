@@ -1,6 +1,19 @@
 import { z } from 'zod';
 
 /**
+ * Uma variável em branco no .env (`FOO=`) chega como string vazia, não como
+ * `undefined` — então `.optional()` sozinho não a trata como ausente, e uma
+ * validação de formato reprovaria um campo que o usuário deixou vazio de
+ * propósito. Este helper normaliza "" (e espaços) para ausente.
+ */
+const opcional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => {
+    if (typeof v !== 'string') return v;
+    const t = v.trim();
+    return t === '' ? undefined : t;
+  }, schema.optional());
+
+/**
  * Configuração do doAPS.
  *
  * Carregada por `node --env-file=.env`, validada aqui.
@@ -17,8 +30,11 @@ const Schema = z
 
     // ─── IA ──────────────────────────────────────────────────────────
     AI_PROVIDER: z.enum(['gemini', 'claude']).default('gemini'),
-    GEMINI_API_KEY: z.string().min(1).optional(),
-    ANTHROPIC_API_KEY: z.string().startsWith('sk-ant-').optional(),
+    // O Google emite chaves em mais de um formato ('AIza…' antigo, 'AQ.…'
+    // novo do AI Studio), então validamos só o comprimento — travar num
+    // prefixo específico rejeitaria chaves válidas.
+    GEMINI_API_KEY: opcional(z.string().min(20)),
+    ANTHROPIC_API_KEY: opcional(z.string().startsWith('sk-ant-')),
     AI_MODEL: z.string().default('gemini-3.8-flash'),
 
     // ─── Segurança operacional ───────────────────────────────────────

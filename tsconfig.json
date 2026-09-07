@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["ESNext"],
+    // DOM é necessário para os callbacks de page.evaluate(), que executam
+    // dentro do navegador. O custo é que globais de DOM ficam visíveis
+    // também no código Node — tradeoff padrão em projetos Playwright.
+    "lib": ["ESNext", "DOM"],
     "module": "NodeNext",
     "moduleResolution": "nodenext",
 
