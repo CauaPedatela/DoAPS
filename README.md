@@ -39,16 +39,30 @@ npm run browser:check   # valida o ambiente, sem usar credenciais
 ## Uso
 
 ```bash
-npm run dry-run    # abre, extrai, resolve e PREENCHE — não envia
-npm run offline    # roda contra HTML salvo, sem navegador nem tentativa
-npm start          # fluxo completo (envio exige --submit)
-npm test           # testes unitários
+npm start -- scan                  # APS pendentes (não mostra as já feitas)
+npm start -- scan --todas          # inclui as concluídas
+npm start -- triage                # prazo e tentativas de cada pendente
+npm start -- run --cmid 2886430    # EXECUTA: preenche, não envia
+npm test
 npm run typecheck
 ```
 
-O **modo padrão não envia nada.** `--dry-run` deixa a tentativa preenchida
-e aberta no Moodle (que salva rascunho sozinho) para você revisar e enviar
-à mão. `--submit` é opt-in e pede confirmação.
+`scan` e `triage` são **somente leitura** — não iniciam tentativa, não
+consomem nada. Só `run` abre tentativa.
+
+### As três garantias
+
+**1. Só mexe no que está pendente.** O estado de conclusão vem do próprio
+índice do Moodle, não de heurística. O que já está feito é ignorado.
+
+**2. Tentativa única exige liberação explícita.** As APS aqui têm 1 ou 2
+tentativas — quase sempre 1. Com tentativa única, **iniciar já é o ponto
+sem volta**, não enviar. Por isso não existe "reserva" numérica: existe um
+portão, `--ultima-tentativa`, que obriga a decisão a ser consciente.
+
+**3. Nada é enviado sem `--submit`.** O padrão preenche e deixa a tentativa
+aberta (o Moodle salva rascunho sozinho) para você revisar no navegador.
+Questões que a IA marcou como confiança baixa saem destacadas no relatório.
 
 ## Segurança
 

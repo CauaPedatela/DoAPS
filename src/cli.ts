@@ -7,6 +7,7 @@ import { login } from './moodle/auth.ts';
 import { listarCursos } from './moodle/courses.ts';
 import { varrerAPS, type ItemAPS } from './moodle/sidebar.ts';
 import { triar, avaliar } from './moodle/triage.ts';
+import { executarAPS } from './runner/executar.ts';
 import { logger } from './core/logger.ts';
 
 const { values, positionals } = parseArgs({
@@ -42,6 +43,9 @@ doAPS — automação de APS no AVA (Moodle)
   npm start -- triage                    lê prazo e tentativas de cada pendente
   npm start -- triage --cmid 2886512     triagem de uma APS específica
 
+  npm start -- run --cmid 2886430       EXECUTA a APS (preenche, não envia)
+  npm start -- run --cmid X --ultima-tentativa   libera APS de tentativa única
+
 O comando triage é SOMENTE LEITURA: não inicia tentativa, não consome nada.
 
 Legenda de conclusão:  ● feita   ○ pendente   ? sem rastreamento
@@ -61,7 +65,7 @@ if (values.submit && values['dry-run']) {
 
 const cfg = loadConfig();
 
-if (comando !== 'scan' && comando !== 'triage') {
+if (!['scan', 'triage', 'run'].includes(comando)) {
   console.error(`Comando desconhecido: ${comando}. Use --help.`);
   process.exit(1);
 }
@@ -136,9 +140,41 @@ try {
     }
   }
 
+  // ─── run: executa a APS de fato ───────────────────────────────────────
+  const execucoes: unknown[] = [];
+  if (comando === 'run') {
+    if (filtradas.length === 0) {
+      console.log('\nNada a executar.');
+    }
+    for (const item of filtradas) {
+      const t = await triar(page, cfg, item);
+      const v = avaliar(t, cfg, { permitirUltimaTentativa: values['ultima-tentativa'] });
+      if (!v.ok) {
+        console.log(`\n·  APS ${item.numero} (cmid ${item.cmid}) pulada — ${v.motivo}`);
+        continue;
+      }
+
+      console.log(`\n▶  Executando APS ${item.numero} — ${item.cursoNome.slice(0, 40)}`);
+      console.log(`   cmid=${item.cmid}  tentativas=${t.tentativasUsadas}/${t.tentativasPermitidas ?? '?'}`);
+      if (!values.submit) console.log('   modo: PREENCHER SEM ENVIAR (--dry-run)');
+
+      const rel = await executarAPS(page, cfg, item, { submeter: values.submit });
+      execucoes.push(rel);
+
+      console.log(`   questões: ${rel.preenchidas}/${rel.questoes} preenchidas em ${rel.segundos}s`);
+      console.log(`   páginas: ${rel.paginas} · chamadas de IA: ${rel.chamadasIA} · cache: ${rel.cacheAcertos} acerto(s)`);
+      console.log(`   tokens: entrada=${rel.uso.entrada} saída=${rel.uso.saida}`);
+      if (rel.baixaConfianca.length > 0) {
+        console.log(`   ⚠ REVISAR (confiança baixa): questões ${rel.baixaConfianca.map((b) => b.slot).join(', ')}`);
+      }
+      for (const f of rel.falhas) console.log(`   ✗ questão ${f.slot}: ${f.motivo}`);
+      console.log(`   tentativa ${rel.attempt} preenchida e ABERTA — revise e envie no navegador`);
+    }
+  }
+
   if (values.json) {
     await mkdir(dirname(values.json), { recursive: true });
-    const saida = comando === 'triage' ? relatorio : filtradas;
+    const saida = comando === 'run' ? execucoes : comando === 'triage' ? relatorio : filtradas;
     await writeFile(values.json, JSON.stringify(saida, null, 2), 'utf8');
     console.log(`\nsalvo em ${values.json}`);
   }
