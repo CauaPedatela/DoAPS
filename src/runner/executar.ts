@@ -7,6 +7,7 @@ import {
   irParaPagina,
   contarPaginas,
   aguardarQuestoes,
+  avancarSubmetendo,
 } from '../moodle/attempt.ts';
 import { extrairQuestoes } from '../extraction/extract.ts';
 import { preencher, type ResultadoPreenchimento } from '../filling/index.ts';
@@ -58,9 +59,14 @@ export async function executarAPS(
     logger.info({ attempt, paginas }, 'tentativa aberta');
 
     // ─── passo 1: percorrer e coletar ──────────────────────────────────
+    // Navega EXPLICITAMENTE para cada página, inclusive a 0. Ao retomar
+    // uma tentativa o Moodle abre na última página visitada, não na
+    // primeira — confiar em onde abrirTentativa caiu fazia a página 0
+    // ser catalogada com a questão errada, e o preenchimento depois
+    // procurava um domId inexistente naquela página.
     const porPagina = new Map<number, Questao[]>();
     for (let p = 0; p < paginas; p++) {
-      const achadas = p === 0 ? await aguardarQuestoes(page) : await irParaPagina(page, cfg, attempt, item.cmid, p);
+      const achadas = await irParaPagina(page, cfg, attempt, item.cmid, p);
       await salvarFixture(page, `aps-${item.cmid}-p${p}`);
       if (achadas === 0) {
         logger.warn({ pagina: p }, 'página sem questões');
@@ -101,12 +107,17 @@ export async function executarAPS(
       }
     }
 
-    // ─── passo 3: voltar preenchendo ───────────────────────────────────
+    // ─── passo 3: preencher avançando pelo formulário ──────────────────
+    // Começa na página 0 e caminha para frente clicando "Próxima página".
+    // NÃO usar page.goto() aqui: o Moodle só grava a resposta quando o
+    // form é submetido, e navegar por URL descarta o que foi preenchido.
     const resultados: ResultadoPreenchimento[] = [];
     const baixa: Array<{ slot: number; resposta: string }> = [];
-    for (const [p, qs] of porPagina) {
-      await irParaPagina(page, cfg, attempt, item.cmid, p);
-      for (const q of qs) {
+
+    await irParaPagina(page, cfg, attempt, item.cmid, 0);
+    for (let p = 0; p < paginas; p++) {
+      await aguardarQuestoes(page);
+      for (const q of porPagina.get(p) ?? []) {
         const r = respostas.get(q.slot);
         if (!r) {
           resultados.push({ slot: q.slot, preenchida: false, motivo: 'IA não respondeu este slot' });
@@ -115,6 +126,8 @@ export async function executarAPS(
         if (r.conf === 'baixa') baixa.push({ slot: q.slot, resposta: r.a });
         resultados.push(await preencher(page, q, r));
       }
+      // Na última página isto leva ao resumo, que grava sem enviar.
+      if (!(await avancarSubmetendo(page))) break;
     }
 
     const esperou = await enforceFloor(t0, cfg.MIN_QUIZ_MINUTES * 60_000);

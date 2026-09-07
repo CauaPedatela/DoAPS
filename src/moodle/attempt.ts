@@ -100,14 +100,22 @@ export async function salvarFixture(page: Page, nome: string): Promise<string> {
   return caminho;
 }
 
-/** Vai para a próxima página da tentativa, se existir. */
-export async function proximaPagina(page: Page): Promise<boolean> {
-  const proximo = page.locator('input[name="next"], button[name="next"]').first();
+/**
+ * Avança SUBMETENDO o formulário da tentativa.
+ *
+ * Esta é a única forma de o Moodle persistir as respostas. O form posta em
+ * `processattempt.php` levando os campos ocultos (attempt, thispage,
+ * sesskey, slots); pular de página com `page.goto()` descarta tudo o que
+ * foi preenchido — foi exatamente o que aconteceu na primeira execução,
+ * que terminou com as 10 questões ainda em `notyetanswered`.
+ *
+ * Na última página o mesmo botão leva ao resumo (summary.php), que salva
+ * as respostas SEM enviar o questionário. Enviar exige outro botão.
+ */
+export async function avancarSubmetendo(page: Page): Promise<boolean> {
+  const proximo = page.locator('#mod_quiz-next-nav, input[name="next"], button[name="next"]').first();
   if (!(await proximo.count())) return false;
-  const valor = (await proximo.getAttribute('value')) ?? '';
-  // "Finalizar tentativa" também usa name=next — não é próxima página.
-  if (/finalizar|terminar/i.test(valor)) return false;
-  await pause(1200);
+  await pause(1400);
   await Promise.all([page.waitForLoadState('domcontentloaded'), proximo.click()]);
   return true;
 }
