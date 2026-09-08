@@ -9,13 +9,16 @@
   },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
+    "daemon": "node --env-file=.env src/daemon.ts",
     "start": "node --env-file=.env src/cli.ts",
     "dry-run": "node --env-file=.env src/cli.ts --dry-run",
     "offline": "node --env-file=.env src/cli.ts --offline",
     "eval": "node --env-file=.env eval/run-eval.ts",
+    "doctor": "node --env-file=.env src/core/doctor.ts",
+    "verificar": "node --env-file=.env src/core/verificar.ts",
+    "browser:check": "node src/core/browser-check.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"tests/**/*.spec.ts\"",
-    "browser:check": "node src/core/browser-check.ts"
+    "test": "node --test \"tests/**/*.spec.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

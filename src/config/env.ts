@@ -43,6 +43,27 @@ const Schema = z
     /** Não abrir tentativa se faltar menos que isto para o prazo. */
     DEADLINE_MARGIN_MINUTES: z.coerce.number().min(0).default(120),
 
+    // ─── Agendador ───────────────────────────────────────────────────
+    /** Horário diário no formato HH:MM, no fuso local da máquina. */
+    DAEMON_HORA: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'DAEMON_HORA deve ser HH:MM (ex: 07:20)')
+      .default('07:20'),
+    /** Envia de fato. Falso = preenche e deixa aberta para você revisar. */
+    DAEMON_SUBMIT: z
+      .string()
+      .default('false')
+      .transform((v) => v.toLowerCase() === 'true'),
+    /**
+     * Inclui APS com uma única tentativa restante.
+     * Perigoso por natureza: nessas, ABRIR já é irreversível — se algo
+     * falhar no meio, não há segunda chance. Falso por padrão.
+     */
+    DAEMON_ULTIMA_TENTATIVA: z
+      .string()
+      .default('false')
+      .transform((v) => v.toLowerCase() === 'true'),
+
     // ─── Execução ────────────────────────────────────────────────────
     /** Usa o Chrome já instalado — sem baixar Chromium, fingerprint real. */
     BROWSER_CHANNEL: z.enum(['chrome', 'msedge', 'chromium']).default('chrome'),

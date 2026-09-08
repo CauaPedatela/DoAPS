@@ -50,6 +50,35 @@ npm run typecheck
 `scan` e `triage` são **somente leitura** — não iniciam tentativa, não
 consomem nada. Só `run` abre tentativa.
 
+### Agendador
+
+```bash
+npm run daemon              # fica aberto, dispara todo dia no horário
+npm run daemon -- --agora   # dispara uma vez já, depois segue agendado
+```
+
+Controlado por `DAEMON_HORA` (padrão `07:20`), `DAEMON_SUBMIT` e
+`DAEMON_ULTIMA_TENTATIVA` no `.env`. Com `HEADED=true` você acompanha o
+navegador trabalhando.
+
+O laço recalcula o próximo horário a cada volta, então continua correto
+mesmo se a máquina dormir. Um erro num dia não derruba o agendador.
+
+#### Rodando pelo IntelliJ
+
+Run/Debug Configurations → **+** → **npm**:
+
+| Campo | Valor |
+|---|---|
+| Name | `daemon` |
+| package.json | `<projeto>/package.json` |
+| Command | `run` |
+| **Scripts** | `daemon` |
+
+O campo **Scripts** é obrigatório — vazio produz o erro *"Please specify
+npm scripts to run"*. `Command` é o verbo do npm (`run`), `Scripts` é
+qual script executar (`daemon`).
+
 ### As três garantias
 
 **1. Só mexe no que está pendente.** O estado de conclusão vem do próprio
