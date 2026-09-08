@@ -36,6 +36,12 @@ const Schema = z
     GEMINI_API_KEY: opcional(z.string().min(20)),
     ANTHROPIC_API_KEY: opcional(z.string().startsWith('sk-ant-')),
     AI_MODEL: z.string().default('gemini-3.8-flash'),
+    /**
+     * Modelos alternativos quando o principal devolve 503. O free tier
+     * satura por modelo: em teste o 3.5-flash respondeu em 1,5s enquanto
+     * o 3.8 falhava seguidamente.
+     */
+    AI_MODEL_FALLBACKS: z.string().default('gemini-3.6-flash,gemini-3.5-flash'),
 
     // ─── Segurança operacional ───────────────────────────────────────
     /** Piso de tempo por questionário. Ver docs/ARQUITETURA.md §8. */
@@ -51,15 +57,6 @@ const Schema = z
       .default('07:20'),
     /** Envia de fato. Falso = preenche e deixa aberta para você revisar. */
     DAEMON_SUBMIT: z
-      .string()
-      .default('false')
-      .transform((v) => v.toLowerCase() === 'true'),
-    /**
-     * Inclui APS com uma única tentativa restante.
-     * Perigoso por natureza: nessas, ABRIR já é irreversível — se algo
-     * falhar no meio, não há segunda chance. Falso por padrão.
-     */
-    DAEMON_ULTIMA_TENTATIVA: z
       .string()
       .default('false')
       .transform((v) => v.toLowerCase() === 'true'),

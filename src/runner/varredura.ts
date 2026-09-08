@@ -10,8 +10,6 @@ import { logger } from '../core/logger.ts';
 export type OpcoesVarredura = {
   /** Envia de fato. Sem isto, preenche e deixa a tentativa aberta. */
   submeter: boolean;
-  /** Libera APS com apenas 1 tentativa restante — irreversível ao abrir. */
-  permitirUltimaTentativa: boolean;
   /** Restringe a um cmid (útil para teste). */
   cmid?: number;
 };
@@ -54,7 +52,7 @@ export async function varrerEExecutar(
 
     for (const item of pendentes) {
       const t = await triar(page, cfg, item);
-      const v = avaliar(t, cfg, { permitirUltimaTentativa: opts.permitirUltimaTentativa });
+      const v = avaliar(t, cfg);
       if (!v.ok) {
         puladas.push({ cmid: item.cmid, numero: item.numero, curso: item.cursoNome, motivo: v.motivo });
         logger.info({ cmid: item.cmid, aps: item.numero, motivo: v.motivo }, 'APS pulada');

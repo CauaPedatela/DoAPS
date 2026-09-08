@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type GenerateContentResponse } from '@google/genai';
 import { z } from 'zod';
 import type { Config } from '../../config/env.ts';
 import { comRetry } from '../../core/retry.ts';
@@ -10,12 +10,20 @@ import type { Solver } from './types.ts';
 export class GeminiSolver implements Solver {
   readonly nome = 'gemini';
   readonly modelo: string;
+  /** Modelos a tentar em ordem quando o principal está congestionado. */
+  readonly #cadeia: string[];
   readonly #ai: GoogleGenAI;
 
   constructor(cfg: Config) {
     if (!cfg.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY ausente');
     this.#ai = new GoogleGenAI({ apiKey: cfg.GEMINI_API_KEY });
     this.modelo = cfg.AI_MODEL;
+    this.#cadeia = [
+      cfg.AI_MODEL,
+      ...cfg.AI_MODEL_FALLBACKS.split(',')
+        .map((m) => m.trim())
+        .filter((m) => m && m !== cfg.AI_MODEL),
+    ];
   }
 
   async resolver(questoes: Questao[]): Promise<{ respostas: Resposta[]; uso: Uso }> {
@@ -27,20 +35,46 @@ export class GeminiSolver implements Solver {
       { text: renderizar(questoes) },
     ];
 
-    const r = await comRetry(
-      () =>
-        this.#ai.models.generateContent({
-          model: this.modelo,
-          contents: [{ role: 'user', parts: partes }],
-          config: {
-            systemInstruction: SISTEMA,
-            responseMimeType: 'application/json',
-            responseJsonSchema: z.toJSONSchema(LoteSchema),
-            temperature: 0,
-          },
-        }),
-      { rotulo: `gemini:${this.modelo}`, tentativas: 5 },
-    );
+    // O free tier devolve 503 ("high demand") com frequência, e insistir no
+    // MESMO modelo congestionado não adianta: numa execução real o
+    // gemini-3.8-flash falhou 5 vezes seguidas e a APS foi abandonada com a
+    // tentativa já aberta. Por isso a cadeia de modelos — em teste, o
+    // 3.5-flash respondeu em 1,5s enquanto o 3.8 estava saturado.
+    let r: GenerateContentResponse | undefined;
+    let usado = this.modelo;
+    const erros: string[] = [];
+
+    for (const modelo of this.#cadeia) {
+      try {
+        r = await comRetry(
+          () =>
+            this.#ai.models.generateContent({
+              model: modelo,
+              contents: [{ role: 'user', parts: partes }],
+              config: {
+                systemInstruction: SISTEMA,
+                responseMimeType: 'application/json',
+                responseJsonSchema: z.toJSONSchema(LoteSchema),
+                temperature: 0,
+              },
+            }),
+          { rotulo: `gemini:${modelo}`, tentativas: 4, baseMs: 1500 },
+        );
+        usado = modelo;
+        if (modelo !== this.modelo) {
+          logger.warn({ principal: this.modelo, usado: modelo }, 'caiu para modelo alternativo');
+        }
+        break;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        erros.push(`${modelo}: ${msg.slice(0, 90)}`);
+        logger.warn({ modelo, restantes: this.#cadeia.length - this.#cadeia.indexOf(modelo) - 1 }, 'modelo indisponível, tentando o próximo');
+      }
+    }
+
+    if (!r) {
+      throw new Error(`Todos os modelos falharam:\n  ${erros.join('\n  ')}`);
+    }
 
     const texto = r.text ?? '';
     let bruto: unknown;
@@ -61,7 +95,7 @@ export class GeminiSolver implements Solver {
       saida: u?.candidatesTokenCount ?? 0,
       cacheadas: u?.cachedContentTokenCount ?? 0,
     };
-    logger.info({ modelo: this.modelo, ...uso, questoes: questoes.length }, 'IA respondeu');
+    logger.info({ modelo: usado, ...uso, questoes: questoes.length }, 'IA respondeu');
 
     return { respostas: parsed.data.respostas, uso };
   }

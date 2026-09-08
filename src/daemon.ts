@@ -27,13 +27,12 @@ const cfg = loadConfig();
 async function ciclo(): Promise<void> {
   const inicio = Date.now();
   logger.info(
-    { submeter: cfg.DAEMON_SUBMIT, ultimaTentativa: cfg.DAEMON_ULTIMA_TENTATIVA },
+    { submeter: cfg.DAEMON_SUBMIT },
     '=== iniciando varredura agendada ===',
   );
 
   const r = await varrerEExecutar(cfg, {
     submeter: cfg.DAEMON_SUBMIT,
-    permitirUltimaTentativa: cfg.DAEMON_ULTIMA_TENTATIVA,
   });
 
   console.log('\n┌─ RESULTADO DA VARREDURA ' + '─'.repeat(34));
@@ -59,7 +58,7 @@ async function main(): Promise<void> {
   console.log('doAPS — agendador ativo');
   console.log(`  horário   : ${cfg.DAEMON_HORA} (fuso local da máquina)`);
   console.log(`  enviar    : ${cfg.DAEMON_SUBMIT ? 'SIM — envia de fato' : 'não (preenche e deixa aberta)'}`);
-  console.log(`  tent.única: ${cfg.DAEMON_ULTIMA_TENTATIVA ? 'inclui APS de tentativa única' : 'PULA APS de tentativa única'}`);
+  console.log('  regra     : só APS sem nenhuma tentativa feita');
   console.log(`  navegador : ${cfg.HEADED ? 'visível' : 'oculto'}\n`);
 
   if (values.agora) {

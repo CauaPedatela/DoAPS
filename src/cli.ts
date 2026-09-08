@@ -21,8 +21,6 @@ const { values, positionals } = parseArgs({
     cmid: { type: 'string' },
     /** Por padrão só mostra pendentes (regra: não mexer no que já está feito). */
     todas: { type: 'boolean', default: false },
-    /** Libera abrir uma APS que tem só 1 tentativa restante. Irreversível. */
-    'ultima-tentativa': { type: 'boolean', default: false },
     json: { type: 'string' },
     help: { type: 'boolean', short: 'h', default: false },
   },
@@ -44,7 +42,6 @@ doAPS — automação de APS no AVA (Moodle)
   npm start -- triage --cmid 2886512     triagem de uma APS específica
 
   npm start -- run --cmid 2886430       EXECUTA a APS (preenche, não envia)
-  npm start -- run --cmid X --ultima-tentativa   libera APS de tentativa única
 
 O comando triage é SOMENTE LEITURA: não inicia tentativa, não consome nada.
 
@@ -125,7 +122,7 @@ try {
     console.log('\n─── TRIAGEM (somente leitura, não consome tentativa) ───\n');
     for (const item of filtradas) {
       const t = await triar(page, cfg, item);
-      const v = avaliar(t, cfg, { permitirUltimaTentativa: values['ultima-tentativa'] });
+      const v = avaliar(t, cfg);
       const prazo = t.fechaEm ? t.fechaEm.toLocaleString('pt-BR') : '—';
 
       console.log(`  ${v.ok ? '✓' : '·'} APS ${String(item.numero).padStart(2, '0')}  ${item.cursoNome.slice(0, 30)}`);
@@ -135,9 +132,6 @@ try {
     }
     const aptas = relatorio.filter((r) => (r as { veredito: { ok: boolean } }).veredito.ok).length;
     console.log(`${aptas} de ${filtradas.length} aptas a rodar agora.`);
-    if (aptas === 0 && !values['ultima-tentativa']) {
-      console.log('Se todas têm tentativa única, use --ultima-tentativa para liberar.');
-    }
   }
 
   // ─── run: executa a APS de fato ───────────────────────────────────────
@@ -148,7 +142,7 @@ try {
     }
     for (const item of filtradas) {
       const t = await triar(page, cfg, item);
-      const v = avaliar(t, cfg, { permitirUltimaTentativa: values['ultima-tentativa'] });
+      const v = avaliar(t, cfg);
       if (!v.ok) {
         console.log(`\n·  APS ${item.numero} (cmid ${item.cmid}) pulada — ${v.motivo}`);
         continue;

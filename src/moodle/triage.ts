@@ -106,18 +106,30 @@ export type Veredito = { ok: boolean; motivo: string };
 /**
  * Decide se a APS pode ser aberta automaticamente.
  *
- * Com tentativa única — o caso comum aqui —, INICIAR já é o ponto sem
- * volta, não enviar. Por isso a última tentativa exige liberação explícita
- * em vez de uma "reserva" numérica: reservar 1 de 1 bloquearia tudo.
+ * Regra central: o robô só toca em APS **virgem** — zero tentativas
+ * concluídas. Se você já fez alguma tentativa, ela não é refeita nem que
+ * ainda sobrem tentativas; aquilo é seu trabalho e não cabe ao robô
+ * sobrescrever. Em compensação, uma APS intocada é executada mesmo tendo
+ * uma única tentativa.
+ *
+ * Isso substitui o antigo portão de "última tentativa", que protegia a
+ * coisa errada: bloqueava justamente as APS que ninguém tinha começado,
+ * e liberava re-executar as que você já havia feito.
  */
-export function avaliar(
-  t: Triagem,
-  cfg: Config,
-  opts: { permitirUltimaTentativa: boolean },
-): Veredito {
+export function avaliar(t: Triagem, cfg: Config): Veredito {
   const agora = new Date();
 
+  // Tentativa aberta e inacabada: é retomada, não recomeço. Normalmente é
+  // uma execução nossa que caiu no meio.
   if (t.emAndamento) return { ok: true, motivo: 'tentativa em andamento — retomar' };
+
+  if (t.tentativasUsadas > 0) {
+    return {
+      ok: false,
+      motivo: `já tem ${t.tentativasUsadas} tentativa(s) feita(s) — não refazer`,
+    };
+  }
+
   if (!t.podeIniciar) return { ok: false, motivo: 'sem botão de iniciar (fechada ou indisponível)' };
   if (t.abreEm && agora < t.abreEm) return { ok: false, motivo: `abre em ${t.abreEm.toLocaleString('pt-BR')}` };
   if (t.fechaEm && agora > t.fechaEm) return { ok: false, motivo: 'prazo encerrado' };
@@ -133,12 +145,6 @@ export function avaliar(
   }
 
   if (t.tentativasRestantes === 0) return { ok: false, motivo: 'sem tentativas restantes' };
-  if (t.tentativasRestantes === 1 && !opts.permitirUltimaTentativa) {
-    return {
-      ok: false,
-      motivo: 'é a ÚLTIMA tentativa — exige --ultima-tentativa (iniciar já é irreversível)',
-    };
-  }
 
-  return { ok: true, motivo: `ok (${t.tentativasRestantes ?? '?'} tentativa(s) restante(s))` };
+  return { ok: true, motivo: `ok (intocada, ${t.tentativasPermitidas ?? '?'} tentativa(s) permitida(s))` };
 }

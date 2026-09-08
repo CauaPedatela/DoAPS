@@ -52,55 +52,64 @@ const base: Triagem = {
 const daquiA = (min: number) => new Date(Date.now() + min * 60_000);
 
 describe('avaliar — o portão que protege as tentativas', () => {
-  test('bloqueia a ÚLTIMA tentativa sem liberação explícita', () => {
-    const v = avaliar(base, cfg, { permitirUltimaTentativa: false });
+  test('APS intocada com tentativa única É executada', () => {
+    // Regra do usuário: fazer todas as pendentes, inclusive as de 1
+    // tentativa. O antigo portão bloqueava justamente estas.
+    const v = avaliar(base, cfg);
+    assert.equal(v.ok, true, v.motivo);
+    assert.match(v.motivo, /intocada/);
+  });
+
+  test('APS com tentativa já feita NÃO é refeita, mesmo sobrando tentativa', () => {
+    const t = { ...base, tentativasPermitidas: 2, tentativasUsadas: 1, tentativasRestantes: 1 };
+    const v = avaliar(t, cfg);
     assert.equal(v.ok, false);
-    assert.match(v.motivo, /ÚLTIMA tentativa/);
+    assert.match(v.motivo, /já tem 1 tentativa/);
   });
 
-  test('libera a última quando autorizado', () => {
-    assert.equal(avaliar(base, cfg, { permitirUltimaTentativa: true }).ok, true);
-  });
-
-  test('com 2 permitidas e 0 usadas, roda sem flag', () => {
+  test('APS com 2 permitidas e nenhuma usada é executada', () => {
     const t = { ...base, tentativasPermitidas: 2, tentativasRestantes: 2 };
-    assert.equal(avaliar(t, cfg, { permitirUltimaTentativa: false }).ok, true);
+    assert.equal(avaliar(t, cfg).ok, true);
   });
 
   test('sem tentativas restantes, nunca abre', () => {
-    const t = { ...base, tentativasRestantes: 0 };
-    assert.equal(avaliar(t, cfg, { permitirUltimaTentativa: true }).ok, false);
+    const t = { ...base, tentativasUsadas: 1, tentativasRestantes: 0 };
+    assert.equal(avaliar(t, cfg).ok, false);
   });
 
   test('recusa quando o prazo já passou', () => {
     const t = { ...base, fechaEm: daquiA(-60) };
-    assert.match(avaliar(t, cfg, { permitirUltimaTentativa: true }).motivo, /encerrado/);
+    assert.match(avaliar(t, cfg).motivo, /encerrado/);
   });
 
   test('recusa quando falta menos que a margem de prazo', () => {
     const t = { ...base, fechaEm: daquiA(30) };
-    const v = avaliar(t, cfg, { permitirUltimaTentativa: true });
+    const v = avaliar(t, cfg);
     assert.equal(v.ok, false);
     assert.match(v.motivo, /margem/);
   });
 
   test('aceita quando o prazo está confortável', () => {
     const t = { ...base, fechaEm: daquiA(60 * 24) };
-    assert.equal(avaliar(t, cfg, { permitirUltimaTentativa: true }).ok, true);
+    assert.equal(avaliar(t, cfg).ok, true);
   });
 
   test('recusa antes da abertura', () => {
     const t = { ...base, abreEm: daquiA(60) };
-    assert.match(avaliar(t, cfg, { permitirUltimaTentativa: true }).motivo, /abre em/);
+    assert.match(avaliar(t, cfg).motivo, /abre em/);
   });
 
-  test('tentativa em andamento é retomada, não bloqueada', () => {
-    const t = { ...base, emAndamento: true, tentativasRestantes: 0 };
-    assert.equal(avaliar(t, cfg, { permitirUltimaTentativa: false }).ok, true);
+  test('tentativa em andamento é RETOMADA — precede a regra de não refazer', () => {
+    // Uma execução nossa que caiu no meio deixa a tentativa aberta e
+    // contando como usada. Retomar é o certo; recomeçar seria perder tudo.
+    const t = { ...base, emAndamento: true, tentativasUsadas: 1, tentativasRestantes: 0 };
+    const v = avaliar(t, cfg);
+    assert.equal(v.ok, true);
+    assert.match(v.motivo, /retomar/);
   });
 
   test('sem botão de iniciar, recusa', () => {
     const t = { ...base, podeIniciar: false };
-    assert.equal(avaliar(t, cfg, { permitirUltimaTentativa: true }).ok, false);
+    assert.equal(avaliar(t, cfg).ok, false);
   });
 });
