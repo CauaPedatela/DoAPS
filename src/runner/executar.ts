@@ -12,6 +12,7 @@ import {
   confirmarEnvio,
 } from '../moodle/attempt.ts';
 import { extrairQuestoes } from '../extraction/extract.ts';
+import { prepararLote } from '../extraction/images.ts';
 import { preencher, type ResultadoPreenchimento } from '../filling/index.ts';
 import { criarSolver } from '../ai/providers/index.ts';
 import { CacheRespostas } from '../ai/cache.ts';
@@ -99,7 +100,16 @@ export async function executarAPS(
     const uso: Uso = { entrada: 0, saida: 0, cacheadas: 0 };
     let chamadas = 0;
     if (faltando.length > 0) {
-      const r = await solver.resolver(faltando);
+      // Imagens exigem a sessão autenticada (pluginfile.php recusa acesso
+      // anônimo), por isso o download usa o contexto do próprio navegador.
+      const urls = faltando.flatMap((q) => [
+        ...q.imagens,
+        ...q.alternativas.map((a) => a.imagem).filter((u): u is string => Boolean(u)),
+      ]);
+      const imgs = urls.length > 0 ? await prepararLote(page.request, urls) : undefined;
+      if (imgs && imgs.size > 0) console.log(`   ↳ ${imgs.size} imagem(ns) anexada(s)`);
+
+      const r = await solver.resolver(faltando, imgs);
       chamadas = 1;
       uso.entrada = r.uso.entrada;
       uso.saida = r.uso.saida;

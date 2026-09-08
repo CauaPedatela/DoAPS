@@ -45,6 +45,8 @@ npm start -- triage                # prazo e tentativas de cada pendente
 npm start -- run --cmid 2886430    # EXECUTA: preenche, não envia
 npm start -- run --cmid X --submit # executa E envia
 npm run verificar -- <attempt> <cmid>   # confere o que foi salvo
+npm run notas                      # boletim: nota de cada APS
+npm run eval                       # mede a IA contra gabarito conhecido
 npm test
 npm run typecheck
 ```
@@ -138,6 +140,9 @@ APS real de 10 questões — **10/10, nota máxima** — com uma única chamada
 de IA (~2.400 tokens) e as respostas conferidas por verificação
 independente.
 
-Ainda **não exercitado em execução real**: questões com imagem e
-discursivas. O código existe (visão e digitação em TinyMCE), mas as APS
-testadas até agora eram só de múltipla escolha.
+Questões com imagem funcionam e foram medidas contra gabarito real
+(`npm run eval`): 13/13, sendo 9 delas com imagem — incluindo uma APS
+em que as próprias alternativas são figuras sem texto algum.
+
+Ainda **não exercitado**: questões discursivas. O código de digitação em
+TinyMCE existe, mas nenhuma APS testada teve uma.

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import type { Config } from '../../config/env.ts';
 import { comRetry } from '../../core/retry.ts';
 import { logger } from '../../core/logger.ts';
-import { SISTEMA, renderizar } from '../prompt.ts';
+import { SISTEMA, renderizar, montarPartes } from '../prompt.ts';
+import type { ImagemPronta } from '../../extraction/images.ts';
 import { LoteSchema, type Questao, type Resposta, type Uso } from '../types.ts';
 import type { Solver } from './types.ts';
 
@@ -26,14 +27,33 @@ export class GeminiSolver implements Solver {
     ];
   }
 
-  async resolver(questoes: Questao[]): Promise<{ respostas: Resposta[]; uso: Uso }> {
+  async resolver(
+    questoes: Questao[],
+    imagens?: Map<string, ImagemPronta>,
+  ): Promise<{ respostas: Resposta[]; uso: Uso }> {
     if (questoes.length === 0) return { respostas: [], uso: { entrada: 0, saida: 0, cacheadas: 0 } };
 
     // Imagens só entram quando existem de fato — a maioria das questões é
     // texto puro, e enviar imagem à toa multiplica o custo por ~800 tokens.
-    const partes: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-      { text: renderizar(questoes) },
-    ];
+    type ParteGemini = { text: string } | { inlineData: { mimeType: string; data: string } };
+
+    const temImagem = imagens !== undefined && imagens.size > 0;
+    const partes: ParteGemini[] = temImagem
+      ? montarPartes(questoes).map((p): ParteGemini => {
+          if ('texto' in p) return { text: p.texto };
+          const img = imagens.get(p.imagemUrl);
+          // URL sem binário (download falhou) vira aviso explícito: é melhor
+          // o modelo saber que está cego naquela questão do que responder
+          // achando que viu tudo.
+          return img
+            ? { inlineData: { mimeType: img.mimeType, data: img.data } }
+            : { text: '\n[IMAGEM INDISPONÍVEL — responda apenas se o texto bastar]' };
+        })
+      : [{ text: renderizar(questoes) }];
+
+    if (temImagem) {
+      logger.info({ imagens: imagens.size, questoes: questoes.length }, 'enviando com imagens');
+    }
 
     // O free tier devolve 503 ("high demand") com frequência, e insistir no
     // MESMO modelo congestionado não adianta: numa execução real o

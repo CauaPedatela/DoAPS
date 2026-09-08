@@ -20,8 +20,18 @@ export async function extrairQuestoes(page: Page): Promise<Questao[]> {
       const classes = Array.from(div.classList);
 
       // O enunciado pode ter imagens; capturamos as URLs à parte.
+      //
+      // Imagens do filtro TeX do Moodle (/filter/tex/) NÃO são figuras:
+      // são fórmulas e texto renderizados como PNG, e o `alt` carrega o
+      // conteúdo original. Baixá-las e mandar para a visão seria caro e
+      // pior — o alt já entrega o texto exato.
       const qtext = div.querySelector('.qtext');
-      const imagens = Array.from(qtext?.querySelectorAll('img') ?? []).map((i) => i.src);
+      const todasImgs = Array.from(qtext?.querySelectorAll('img') ?? []);
+      const imagens = todasImgs.filter((i) => !i.src.includes('/filter/tex/')).map((i) => i.src);
+      const textoTex = todasImgs
+        .filter((i) => i.src.includes('/filter/tex/'))
+        .map((i) => i.alt || i.title || '')
+        .filter(Boolean);
 
       // Cada alternativa é uma linha .r0/.r1/... dentro de .answer
       const linhas = Array.from(div.querySelectorAll<HTMLElement>('.answer > div'));
@@ -38,7 +48,7 @@ export async function extrairQuestoes(page: Page): Promise<Questao[]> {
             inputValue: input.value,
             inputName: input.name,
             texto: limpar(label?.textContent).replace(/^[a-j][).]\s*/i, ''),
-            imagem: linha.querySelector('img')?.src,
+            imagem: Array.from(linha.querySelectorAll("img")).find(i => !i.src.includes("/filter/tex/"))?.src,
           };
         })
         .filter((x): x is NonNullable<typeof x> => x !== null && x.inputValue !== '-1');
@@ -52,7 +62,7 @@ export async function extrairQuestoes(page: Page): Promise<Questao[]> {
         idx,
         domId: div.id,
         classes,
-        enunciado: limpar(qtext?.textContent),
+        enunciado: [limpar(qtext?.textContent), ...textoTex].filter(Boolean).join(" "),
         imagens,
         alternativas,
         nomeTextarea: textarea?.name ?? null,

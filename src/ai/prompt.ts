@@ -1,5 +1,6 @@
 import type { Questao } from './types.ts';
 
+
 /**
  * Instrução estável — fica no bloco cacheável, sem nada volátil dentro.
  * Qualquer data, id ou contador aqui invalidaria o cache de prompt a cada
@@ -35,4 +36,40 @@ export function renderizar(questoes: Questao[]): string {
       return `${cabeca}\n${alts}`;
     })
     .join('\n\n');
+}
+
+export type Parte = { texto: string } | { imagemUrl: string };
+
+/**
+ * Monta o conteúdo intercalando texto e imagens.
+ *
+ * A imagem vai logo depois do enunciado a que pertence, com um marcador
+ * antes. Mandar todas as imagens no fim, soltas, obrigaria o modelo a
+ * adivinhar a associação — e com 12 imagens numa prova de 3 questões,
+ * como em Pesquisa Operacional APS 4, isso seria adivinhação pura.
+ */
+export function montarPartes(questoes: Questao[]): Parte[] {
+  const partes: Parte[] = [];
+
+  for (const q of questoes) {
+    const cabeca = `[${q.slot}] (${q.tipo}) ${q.enunciado}`;
+    partes.push({ texto: partes.length === 0 ? cabeca : `\n\n${cabeca}` });
+
+    for (const url of q.imagens) {
+      partes.push({ texto: `\n(imagem do enunciado da questão ${q.slot}:)` });
+      partes.push({ imagemUrl: url });
+    }
+
+    if (q.alternativas.length > 0) {
+      for (const a of q.alternativas) {
+        partes.push({ texto: `\n${a.letra}) ${a.texto}` });
+        if (a.imagem) {
+          partes.push({ texto: `\n(imagem da alternativa ${a.letra}:)` });
+          partes.push({ imagemUrl: a.imagem });
+        }
+      }
+    }
+  }
+
+  return partes;
 }
