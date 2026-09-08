@@ -21,7 +21,9 @@ auth → discover → scan → triage → attempt → extract
                                     fill → submit → report
 ```
 
-Detalhes em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+Como tudo funciona, arquivo por arquivo, e o que pode quebrar:
+[`docs/COMO-FUNCIONA.md`](docs/COMO-FUNCIONA.md).
+Decisões de projeto e viabilidade: [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Requisitos
 
