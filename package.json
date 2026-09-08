@@ -18,7 +18,8 @@
     "verificar": "node --env-file=.env src/core/verificar.ts",
     "browser:check": "node src/core/browser-check.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"tests/**/*.spec.ts\""
+    "test": "node --test \"tests/**/*.spec.ts\"",
+    "notas": "node --env-file=.env src/core/notas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
