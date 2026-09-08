@@ -60,18 +60,28 @@ export async function triar(page: Page, cfg: Config, item: ItemAPS): Promise<Tri
     const main = limpar(document.querySelector('[role="main"], #region-main')?.textContent);
     const texto = main.split(/Acessibilidade\s+Redefinir tudo/)[0] ?? main;
 
-    // A tabela de tentativas só existe depois da primeira tentativa.
-    const linhas = Array.from(document.querySelectorAll('table.quizattemptsummary tbody tr'))
-      .map((tr) => limpar(tr.textContent));
+    // Cada tentativa aparece num bloco "Resumo da tentativa N".
+    //
+    // A classe da tabela é `quizreviewsummary` — NÃO `quizattemptsummary`,
+    // que não existe nesta página. Contar a errada devolvia sempre zero, e
+    // com isso a regra "só APS intocada" nunca disparava: uma APS já feita
+    // passava pelo portão como se fosse virgem.
+    const blocos = Array.from(document.querySelectorAll('table'))
+      .map((t) => limpar(t.textContent))
+      .filter((t) => /Resumo da tentativa/i.test(t));
 
     return {
       titulo: limpar(document.querySelector('h1')?.textContent),
       texto,
-      linhasTentativas: linhas,
+      linhasTentativas: blocos,
+      // Uma tentativa aberta aparece como "Nunca enviadas" ou "Em andamento".
+      abertaNaTabela: blocos.some((b) => /Nunca enviadas|Em andamento/i.test(b)),
       temFormIniciar: Boolean(document.querySelector('form[action*="startattempt"]')),
       textoBotao: limpar(
         document.querySelector('form[action*="startattempt"] button, .singlebutton a')?.textContent,
       ),
+      // Link direto para uma tentativa em curso, se houver.
+      temLinkContinuar: Boolean(document.querySelector('a[href*="attempt.php?attempt="]')),
     };
   });
 
@@ -83,8 +93,13 @@ export async function triar(page: Page, cfg: Config, item: ItemAPS): Promise<Tri
   const tentativasPermitidas = permitidas?.[1] ? Number(permitidas[1]) : null;
   const tentativasUsadas = bruto.linhasTentativas.length;
 
-  // "Continuar a última tentativa" indica tentativa aberta a retomar.
-  const emAndamento = /continuar|retomar/i.test(bruto.textoBotao);
+  // Detecção por três sinais independentes: o rótulo do botão muda com o
+  // idioma e o tema, então sozinho não basta. O estado na tabela
+  // ("Nunca enviadas") é o mais confiável.
+  const emAndamento =
+    bruto.abertaNaTabela ||
+    /continuar|retomar/i.test(bruto.textoBotao) ||
+    (bruto.temLinkContinuar && !bruto.temFormIniciar);
 
   return {
     cmid: item.cmid,
@@ -116,17 +131,24 @@ export type Veredito = { ok: boolean; motivo: string };
  * coisa errada: bloqueava justamente as APS que ninguém tinha começado,
  * e liberava re-executar as que você já havia feito.
  */
-export function avaliar(t: Triagem, cfg: Config): Veredito {
+export function avaliar(
+  t: Triagem,
+  cfg: Config,
+  opts: { forcar?: boolean } = {},
+): Veredito {
   const agora = new Date();
 
   // Tentativa aberta e inacabada: é retomada, não recomeço. Normalmente é
   // uma execução nossa que caiu no meio.
   if (t.emAndamento) return { ok: true, motivo: 'tentativa em andamento — retomar' };
 
-  if (t.tentativasUsadas > 0) {
+  // `forcar` existe só para teste deliberado numa APS já feita. Nunca é
+  // ligado pelo agendador: a regra padrão é justamente não refazer o que
+  // você já entregou.
+  if (t.tentativasUsadas > 0 && !opts.forcar) {
     return {
       ok: false,
-      motivo: `já tem ${t.tentativasUsadas} tentativa(s) feita(s) — não refazer`,
+      motivo: `já tem ${t.tentativasUsadas} tentativa(s) feita(s) — não refazer (use --forcar para testar)`,
     };
   }
 
@@ -146,5 +168,11 @@ export function avaliar(t: Triagem, cfg: Config): Veredito {
 
   if (t.tentativasRestantes === 0) return { ok: false, motivo: 'sem tentativas restantes' };
 
-  return { ok: true, motivo: `ok (intocada, ${t.tentativasPermitidas ?? '?'} tentativa(s) permitida(s))` };
+  return {
+    ok: true,
+    motivo:
+      t.tentativasUsadas > 0
+        ? `FORÇADO: já tinha ${t.tentativasUsadas} tentativa(s), sobra(m) ${t.tentativasRestantes ?? '?'}`
+        : `ok (intocada, ${t.tentativasPermitidas ?? '?'} tentativa(s) permitida(s))`,
+  };
 }

@@ -21,6 +21,8 @@ const { values, positionals } = parseArgs({
     cmid: { type: 'string' },
     /** Por padrão só mostra pendentes (regra: não mexer no que já está feito). */
     todas: { type: 'boolean', default: false },
+    /** Permite rodar numa APS que já tem tentativa feita. Só para teste. */
+    forcar: { type: 'boolean', default: false },
     json: { type: 'string' },
     help: { type: 'boolean', short: 'h', default: false },
   },
@@ -89,7 +91,7 @@ try {
   // está feita, e descartar em silêncio seria pior do que mostrar a mais.
   const filtradas = encontradas
     .filter((a) => alvoCmid === undefined || a.cmid === alvoCmid)
-    .filter((a) => values.todas || a.concluida !== true);
+    .filter((a) => values.todas || values.forcar || a.concluida !== true);
 
   const marca = (c: boolean | null): string => (c === true ? '●' : c === false ? '○' : '?');
 
@@ -122,7 +124,7 @@ try {
     console.log('\n─── TRIAGEM (somente leitura, não consome tentativa) ───\n');
     for (const item of filtradas) {
       const t = await triar(page, cfg, item);
-      const v = avaliar(t, cfg);
+      const v = avaliar(t, cfg, { forcar: values.forcar });
       const prazo = t.fechaEm ? t.fechaEm.toLocaleString('pt-BR') : '—';
 
       console.log(`  ${v.ok ? '✓' : '·'} APS ${String(item.numero).padStart(2, '0')}  ${item.cursoNome.slice(0, 30)}`);
@@ -142,7 +144,7 @@ try {
     }
     for (const item of filtradas) {
       const t = await triar(page, cfg, item);
-      const v = avaliar(t, cfg);
+      const v = avaliar(t, cfg, { forcar: values.forcar });
       if (!v.ok) {
         console.log(`\n·  APS ${item.numero} (cmid ${item.cmid}) pulada — ${v.motivo}`);
         continue;

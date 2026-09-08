@@ -12,6 +12,8 @@ export type OpcoesVarredura = {
   submeter: boolean;
   /** Restringe a um cmid (útil para teste). */
   cmid?: number;
+  /** Roda mesmo numa APS já feita. Só para teste; o agendador nunca liga. */
+  forcar?: boolean;
 };
 
 export type ResultadoVarredura = {
@@ -46,13 +48,13 @@ export async function varrerEExecutar(
     // Regra: nunca mexer no que já está concluído.
     const pendentes = encontradas
       .filter((a) => opts.cmid === undefined || a.cmid === opts.cmid)
-      .filter((a) => a.concluida !== true);
+      .filter((a) => opts.forcar || a.concluida !== true);
 
     logger.info({ total: encontradas.length, pendentes: pendentes.length }, 'varredura concluída');
 
     for (const item of pendentes) {
       const t = await triar(page, cfg, item);
-      const v = avaliar(t, cfg);
+      const v = avaliar(t, cfg, { forcar: opts.forcar ?? false });
       if (!v.ok) {
         puladas.push({ cmid: item.cmid, numero: item.numero, curso: item.cursoNome, motivo: v.motivo });
         logger.info({ cmid: item.cmid, aps: item.numero, motivo: v.motivo }, 'APS pulada');
