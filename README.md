@@ -53,8 +53,9 @@ consomem nada. Só `run` abre tentativa.
 ### Agendador
 
 ```bash
-npm run daemon              # fica aberto, dispara todo dia no horário
-npm run daemon -- --agora   # dispara uma vez já, depois segue agendado
+npm run daemon                 # executa JÁ e depois entra no loop diário
+npm run daemon -- --so-agendar # pula a execução inicial, só agenda
+npm run daemon -- --uma-vez    # executa uma vez e encerra
 ```
 
 Controlado por `DAEMON_HORA` (padrão `07:20`), `DAEMON_SUBMIT` e
