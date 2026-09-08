@@ -4,8 +4,8 @@ Automação de questionários **APS** no AVA (Moodle) da UniEVANGÉLICA, com
 Playwright para navegação e um LLM restrito a uma única tarefa: ler uma
 questão e devolver a alternativa.
 
-> Projeto acadêmico, desafio proposto em sala. O fluxo é **determinístico
-> por padrão** e não envia nada sem `--submit` explícito.
+> Projeto acadêmico, desafio proposto em sala. O fluxo é **determinístico**:
+> a IA só decide a alternativa; navegação, extração e envio são código.
 
 ## Princípio
 
@@ -43,6 +43,8 @@ npm start -- scan                  # APS pendentes (não mostra as já feitas)
 npm start -- scan --todas          # inclui as concluídas
 npm start -- triage                # prazo e tentativas de cada pendente
 npm start -- run --cmid 2886430    # EXECUTA: preenche, não envia
+npm start -- run --cmid X --submit # executa E envia
+npm run verificar -- <attempt> <cmid>   # confere o que foi salvo
 npm test
 npm run typecheck
 ```
@@ -58,9 +60,11 @@ npm run daemon -- --so-agendar # pula a execução inicial, só agenda
 npm run daemon -- --uma-vez    # executa uma vez e encerra
 ```
 
-Controlado por `DAEMON_HORA` (padrão `07:20`), `DAEMON_SUBMIT` e
-`DAEMON_ULTIMA_TENTATIVA` no `.env`. Com `HEADED=true` você acompanha o
-navegador trabalhando.
+Ao subir, ele **executa na hora** — é quando você está olhando a tela — e
+só depois entra na espera do horário diário.
+
+Controlado por `DAEMON_HORA` (padrão `07:20`) e `DAEMON_SUBMIT` no `.env`.
+Com `HEADED=true` você acompanha o navegador trabalhando.
 
 O laço recalcula o próximo horário a cada volta, então continua correto
 mesmo se a máquina dormir. Um erro num dia não derruba o agendador.
@@ -82,17 +86,25 @@ qual script executar (`daemon`).
 
 ### As três garantias
 
-**1. Só mexe no que está pendente.** O estado de conclusão vem do próprio
-índice do Moodle, não de heurística. O que já está feito é ignorado.
+**1. Só toca em APS intocada.** O robô executa apenas o que tem **zero
+tentativas concluídas**. Se você já fez alguma tentativa, ela não é
+refeita — nem que ainda sobrem tentativas. Em compensação, uma APS que
+ninguém começou é executada mesmo tendo uma única tentativa.
 
-**2. Tentativa única exige liberação explícita.** As APS aqui têm 1 ou 2
-tentativas — quase sempre 1. Com tentativa única, **iniciar já é o ponto
-sem volta**, não enviar. Por isso não existe "reserva" numérica: existe um
-portão, `--ultima-tentativa`, que obriga a decisão a ser consciente.
+Uma tentativa **em andamento** é exceção: ela é retomada, não recomeçada.
+Normalmente é uma execução nossa que caiu no meio.
 
-**3. Nada é enviado sem `--submit`.** O padrão preenche e deixa a tentativa
-aberta (o Moodle salva rascunho sozinho) para você revisar no navegador.
-Questões que a IA marcou como confiança baixa saem destacadas no relatório.
+**2. Nada é enviado por acidente.** No CLI, envio exige `--submit`. No
+agendador, exige `DAEMON_SUBMIT=true` — e aí o banner de início avisa em
+letras claras e espera 5s antes de começar. Sem isso, o fluxo preenche e
+deixa a tentativa aberta (o Moodle salva rascunho sozinho) para você
+revisar no navegador.
+
+**3. O relatório não é prova.** `preenchida: true` significa apenas que o
+clique não deu erro — já aconteceu de reportar 10/10 com zero respostas
+gravadas. Por isso existe `npm run verificar -- <attempt> <cmid>`, que
+relê a tentativa no Moodle e confere o que de fato foi salvo, ignorando o
+radio-sentinela `value="-1"` que o Moodle mantém marcado por padrão.
 
 ## Segurança
 
@@ -120,6 +132,12 @@ camada extra.
 
 ## Estado
 
-Fase 1 de 7. Feito: esqueleto, configuração validada, navegador,
-ritmo humano, barreiras de segredo. Roadmap completo em
-[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) §13.
+Fluxo completo funcionando de ponta a ponta: login, varredura das
+disciplinas, triagem, execução, envio e agendamento diário. Validado numa
+APS real de 10 questões — **10/10, nota máxima** — com uma única chamada
+de IA (~2.400 tokens) e as respostas conferidas por verificação
+independente.
+
+Ainda **não exercitado em execução real**: questões com imagem e
+discursivas. O código existe (visão e digitação em TinyMCE), mas as APS
+testadas até agora eram só de múltipla escolha.
