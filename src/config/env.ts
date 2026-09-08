@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 
 /**
@@ -103,4 +104,39 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
     );
   }
   return parsed.data;
+}
+
+/**
+ * Relê o .env em runtime, sobrescrevendo o que já está em process.env.
+ *
+ * `node --env-file` lê o arquivo uma única vez, no start, e
+ * `process.loadEnvFile()` NÃO sobrescreve variáveis já definidas — testado.
+ * Num processo que fica aberto por dias, isso significaria reiniciar o
+ * agendador para mudar qualquer ajuste. Aqui o parse é próprio e o valor
+ * novo vence.
+ */
+export function recarregarEnv(caminho = '.env'): void {
+  let texto: string;
+  try {
+    texto = readFileSync(caminho, 'utf8');
+  } catch {
+    return; // sem .env (CI, container com env injetado) — segue com o que há
+  }
+
+  for (const linha of texto.split(/\r?\n/)) {
+    const limpa = linha.trim();
+    if (!limpa || limpa.startsWith('#')) continue;
+    const sep = limpa.indexOf('=');
+    if (sep < 1) continue;
+    const chave = limpa.slice(0, sep).trim();
+    let valor = limpa.slice(sep + 1).trim();
+    // remove aspas envolventes, se houver
+    if (
+      (valor.startsWith('"') && valor.endsWith('"')) ||
+      (valor.startsWith("'") && valor.endsWith("'"))
+    ) {
+      valor = valor.slice(1, -1);
+    }
+    process.env[chave] = valor;
+  }
 }

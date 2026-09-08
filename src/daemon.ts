@@ -10,7 +10,7 @@
  *   npm run daemon -- --uma-vez    executa uma vez e encerra
  */
 import { parseArgs } from 'node:util';
-import { loadConfig } from './config/env.ts';
+import { loadConfig, recarregarEnv } from './config/env.ts';
 import { varrerEExecutar } from './runner/varredura.ts';
 import { logger } from './core/logger.ts';
 import { proximaExecucao, formatarEspera } from './core/agenda.ts';
@@ -29,8 +29,15 @@ const cfg = loadConfig();
 
 async function ciclo(): Promise<void> {
   const inicio = Date.now();
+
+  // Relê o .env a cada ciclo: o agendador fica aberto por dias, e sem isto
+  // qualquer ajuste (MIN_QUIZ_MINUTES, DAEMON_SUBMIT, horário) exigiria
+  // reiniciar — o que, no meio de uma APS, deixaria a tentativa aberta.
+  recarregarEnv();
+  const cfg = loadConfig();
+
   logger.info(
-    { submeter: cfg.DAEMON_SUBMIT },
+    { submeter: cfg.DAEMON_SUBMIT, pisoMin: cfg.MIN_QUIZ_MINUTES },
     '=== iniciando varredura ===',
   );
 
@@ -90,7 +97,10 @@ async function main(): Promise<void> {
   // Laço perpétuo: recalcula o alvo a cada volta, então continua correto
   // mesmo se a máquina dormir ou o relógio for ajustado no meio.
   for (;;) {
-    const alvo = proximaExecucao(cfg.DAEMON_HORA);
+    // Relê também aqui: mudar DAEMON_HORA no .env passa a valer na
+    // próxima volta, sem reiniciar.
+    recarregarEnv();
+    const alvo = proximaExecucao(loadConfig().DAEMON_HORA);
     const espera = alvo.getTime() - Date.now();
     logger.info(
       { proxima: alvo.toLocaleString('pt-BR'), em: formatarEspera(espera) },
