@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
+    "ui": "node --env-file=.env src/ui/server.ts",
     "daemon": "node --env-file=.env src/daemon.ts",
     "start": "node --env-file=.env src/cli.ts",
     "dry-run": "node --env-file=.env src/cli.ts --dry-run",
@@ -16,10 +17,10 @@
     "eval": "node --env-file=.env eval/run-eval.ts",
     "doctor": "node --env-file=.env src/core/doctor.ts",
     "verificar": "node --env-file=.env src/core/verificar.ts",
+    "notas": "node --env-file=.env src/core/notas.ts",
     "browser:check": "node src/core/browser-check.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"tests/**/*.spec.ts\"",
-    "notas": "node --env-file=.env src/core/notas.ts"
+    "test": "node --test \"tests/**/*.spec.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

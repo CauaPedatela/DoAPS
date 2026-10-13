@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>doAPS — painel local</title>
+<style>
+  :root {
+    --fundo: #f6f7f9;    --cartao: #ffffff;  --borda: #e3e6ea;
+    --texto: #1b1f24;    --fraco: #656d76;   --acento: #2563eb;
+    --ok: #15803d;       --alerta: #b45309;  --erro: #b91c1c;
+    --term-fundo: #0f1419; --term-texto: #d6dde6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fundo: #0f1115;  --cartao: #171a21;  --borda: #262b35;
+      --texto: #e6e9ee;  --fraco: #9099a6;   --acento: #5b8cff;
+      --ok: #4ade80;     --alerta: #fbbf24;  --erro: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; background: var(--fundo); color: var(--texto);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.2px; }
+  .selo {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+    background: var(--borda); color: var(--fraco); padding: 3px 8px; border-radius: 999px;
+  }
+  .sub { color: var(--fraco); font-size: 13px; margin: 0 0 20px; }
+  .cartao {
+    background: var(--cartao); border: 1px solid var(--borda);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 10px 12px; font-size: 15px; font-family: inherit;
+    background: var(--fundo); color: var(--texto);
+    border: 1px solid var(--borda); border-radius: 8px;
+  }
+  input:focus { outline: 2px solid var(--acento); outline-offset: -1px; }
+  .campo { margin-bottom: 14px; }
+  .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .opcoes { display: flex; flex-wrap: wrap; gap: 16px; margin: 4px 0 18px; }
+  .opc { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--fraco); }
+  .opc input { width: 16px; height: 16px; accent-color: var(--acento); }
+  button {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 600; font-family: inherit;
+    color: #fff; background: var(--acento); border: 0; border-radius: 9px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: progress; }
+  .aviso {
+    font-size: 12.5px; color: var(--alerta); margin-top: 12px;
+    display: none; align-items: flex-start; gap: 7px;
+  }
+  .aviso.ver { display: flex; }
+  #terminal {
+    background: var(--term-fundo); color: var(--term-texto);
+    border-radius: 10px; padding: 14px 16px; height: 300px; overflow-y: auto;
+    font: 12.5px/1.65 ui-monospace, "Cascadia Code", Consolas, monospace;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #terminal .fase { color: #7dd3fc; font-weight: 600; }
+  #terminal .ok   { color: #86efac; }
+  #terminal .err  { color: #fca5a5; }
+  #terminal .dim  { color: #6b7684; }
+  .rodape { font-size: 12px; color: var(--fraco); text-align: center; margin-top: 18px; }
+  .estado { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fraco); margin-bottom: 10px; }
+  .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--fraco); }
+  .ponto.vivo { background: var(--ok); animation: pulso 1.6s infinite; }
+  @keyframes pulso { 50% { opacity: .35; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>doAPS</h1>
+    <span class="selo">painel local</span>
+  </header>
+  <p class="sub">
+    Resolve as APS pendentes no AVA da UniEVANGÉLICA.
+    Suas credenciais ficam nesta máquina — vão só para o processo local que
+    controla o navegador, nunca para a internet.
+  </p>
+
+  <form class="cartao" id="form">
+    <div class="linha">
+      <div class="campo">
+        <label for="usuario">Usuário do AVA</label>
+        <input id="usuario" name="usuario" type="text" autocomplete="username"
+               inputmode="numeric" placeholder="matrícula" required>
+      </div>
+      <div class="campo">
+        <label for="senha">Senha</label>
+        <input id="senha" name="senha" type="password" autocomplete="current-password"
+               placeholder="••••••••" required>
+      </div>
+    </div>
+
+    <div class="opcoes">
+      <label class="opc"><input type="checkbox" id="enviar"> Enviar as APS (irreversível)</label>
+      <label class="opc"><input type="checkbox" id="lembrar"> Lembrar no .env</label>
+    </div>
+
+    <div class="campo">
+      <label for="cmid">Uma APS específica <span style="font-weight:400;color:var(--fraco)">(opcional — cmid)</span></label>
+      <input id="cmid" type="text" inputmode="numeric" placeholder="deixe vazio para fazer todas as pendentes">
+    </div>
+    <div class="opcoes" style="margin-bottom:18px">
+      <label class="opc"><input type="checkbox" id="forcar"> Forçar, mesmo se já tiver tentativa feita</label>
+    </div>
+
+    <button type="submit" id="botao">Fazer APS</button>
+
+    <div class="aviso" id="aviso">
+      <span>⚠</span>
+      <span><strong>Envio automático ligado.</strong> Cada APS será enviada de vez,
+      sem você revisar. Com tentativa única não há como desfazer.</span>
+    </div>
+  </form>
+
+  <div class="cartao">
+    <div class="estado"><span class="ponto" id="ponto"></span><span id="estado">ocioso</span></div>
+    <div id="terminal"><span class="dim">Aguardando…</span></div>
+  </div>
+
+  <p class="rodape">Servidor em 127.0.0.1 — inacessível pela rede.</p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const term = $('terminal');
+let primeira = true;
+
+function escrever(texto, classe) {
+  if (primeira) { term.innerHTML = ''; primeira = false; }
+  const span = document.createElement('span');
+  if (classe) span.className = classe;
+  span.textContent = texto + '\n';
+  term.appendChild(span);
+  term.scrollTop = term.scrollHeight;
+}
+
+function ocupado(sim) {
+  $('botao').disabled = sim;
+  $('botao').textContent = sim ? 'Executando…' : 'Fazer APS';
+  $('ponto').classList.toggle('vivo', sim);
+  $('estado').textContent = sim ? 'executando' : 'ocioso';
+}
+
+$('enviar').addEventListener('change', (e) => {
+  $('aviso').classList.toggle('ver', e.target.checked);
+});
+
+// Fluxo de eventos do servidor: o progresso chega por aqui, linha a linha.
+const fonte = new EventSource('/api/eventos');
+fonte.onmessage = (ev) => {
+  const e = JSON.parse(ev.data);
+  if (e.tipo === 'fase') escrever(e.texto, 'fase');
+  else if (e.tipo === 'erro') { escrever('✗ ' + e.texto, 'err'); ocupado(false); }
+  else if (e.tipo === 'fim') {
+    ocupado(false);
+    const r = e.resumo;
+    if (r) {
+      escrever('');
+      escrever(`Concluído: ${r.executadas.length} executada(s), ${r.puladas.length} pulada(s)`, 'ok');
+      for (const x of r.executadas) {
+        escrever(`  ✓ ${x.aps} — ${x.preenchidas}/${x.questoes}${x.enviado ? ' ENVIADA' : ' (não enviada)'}`, 'ok');
+      }
+      for (const x of r.puladas) escrever(`  · APS ${x.numero}: ${x.motivo}`, 'dim');
+    }
+  }
+  else escrever(e.texto);
+};
+fonte.onerror = () => escrever('conexão com o servidor caiu', 'err');
+
+$('form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  if ($('enviar').checked &&
+      !confirm('As APS serão ENVIADAS de vez, sem revisão.\n\nCom tentativa única não há como desfazer. Continuar?')) {
+    return;
+  }
+  ocupado(true);
+  term.innerHTML = ''; primeira = true;
+  escrever('iniciando…', 'dim');
+
+  const resp = await fetch('/api/executar', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      usuario: $('usuario').value.trim(),
+      senha: $('senha').value,
+      enviar: $('enviar').checked,
+      lembrar: $('lembrar').checked,
+      forcar: $('forcar').checked,
+      cmid: $('cmid').value.trim() || undefined,
+    }),
+  });
+  if (!resp.ok) {
+    const j = await resp.json().catch(() => ({ erro: 'falha ao iniciar' }));
+    escrever('✗ ' + (j.erro ?? 'falha'), 'err');
+    ocupado(false);
+  }
+});
+
+fetch('/api/status').then(r => r.json()).then(s => ocupado(s.rodando)).catch(() => {});
+</script>
+</body>
+</html>

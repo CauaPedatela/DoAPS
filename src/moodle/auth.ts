@@ -39,10 +39,37 @@ export async function login(context: BrowserContext, cfg: Config): Promise<Page>
   }
 
   logger.info('autenticando');
-  await page.goto(cfg.MOODLE_URL + PATHS.login, {
-    waitUntil: 'domcontentloaded',
-    timeout: 45_000,
-  });
+
+  // O formulário do tema Snap começa com `display:none` e só é revelado
+  // pelo JavaScript do tema. Se um recurso falhar ao carregar — e o
+  // servidor do AVA reseta conexões sob carga, atingindo `core/first.js` e
+  // a folha de estilo — o campo existe no DOM mas nunca fica visível, e o
+  // clique falha por timeout depois de 30s.
+  //
+  // Recarregar resolve, porque a falha é de rede e não de estrutura.
+  let visivel = false;
+  for (let tentativa = 1; tentativa <= 3 && !visivel; tentativa++) {
+    await page.goto(cfg.MOODLE_URL + PATHS.login, {
+      waitUntil: 'domcontentloaded',
+      timeout: 45_000,
+    });
+    try {
+      await page.locator(S.login.username).waitFor({ state: 'visible', timeout: 20_000 });
+      visivel = true;
+    } catch {
+      logger.warn({ tentativa }, 'formulário de login não apareceu — recarregando');
+      await pause(2500);
+    }
+  }
+
+  if (!visivel) {
+    throw new Error(
+      'O formulário de login não ficou visível após 3 tentativas. ' +
+        'O campo existe no HTML mas o tema não o revelou — normalmente é recurso ' +
+        'do AVA falhando ao carregar (o servidor reseta conexões sob carga). ' +
+        'Tente de novo em alguns minutos.',
+    );
+  }
 
   // O logintoken é o CSRF do Moodle; sua ausência significa que a página
   // não é a de login que esperamos (redirect, manutenção, SSO novo…).

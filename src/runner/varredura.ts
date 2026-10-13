@@ -1,3 +1,4 @@
+import { progresso } from '../core/eventos.ts';
 import type { Config } from '../config/env.ts';
 import { launch } from '../core/browser.ts';
 import { login } from '../moodle/auth.ts';

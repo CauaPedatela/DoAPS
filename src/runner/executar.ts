@@ -1,3 +1,4 @@
+import { progresso } from '../core/eventos.ts';
 import type { Page } from 'playwright';
 import type { Config } from '../config/env.ts';
 import type { ItemAPS } from '../moodle/sidebar.ts';
@@ -60,7 +61,7 @@ export async function executarAPS(
     await aguardarQuestoes(page);
     const paginas = await contarPaginas(page);
     logger.info({ attempt, paginas }, 'tentativa aberta');
-    console.log(`   [1/4] lendo ${paginas} página(s)…`);
+    progresso(`   [1/4] lendo ${paginas} página(s)…`);
 
     // ─── passo 1: percorrer e coletar ──────────────────────────────────
     // Navega EXPLICITAMENTE para cada página, inclusive a 0. Ao retomar
@@ -83,7 +84,7 @@ export async function executarAPS(
 
     const todas = [...porPagina.values()].flat();
     logger.info({ questoes: todas.length, paginas }, 'coleta concluída');
-    console.log(`   [2/4] resolvendo ${todas.length} questão(ões) com a IA…`);
+    progresso(`   [2/4] resolvendo ${todas.length} questão(ões) com a IA…`);
 
     // ─── passo 2: resolver — cache primeiro, uma chamada para o resto ──
     const respostas = new Map<number, Resposta>();
@@ -107,7 +108,7 @@ export async function executarAPS(
         ...q.alternativas.map((a) => a.imagem).filter((u): u is string => Boolean(u)),
       ]);
       const imgs = urls.length > 0 ? await prepararLote(page.request, urls) : undefined;
-      if (imgs && imgs.size > 0) console.log(`   ↳ ${imgs.size} imagem(ns) anexada(s)`);
+      if (imgs && imgs.size > 0) progresso(`   ↳ ${imgs.size} imagem(ns) anexada(s)`);
 
       const r = await solver.resolver(faltando, imgs);
       chamadas = 1;
@@ -128,7 +129,7 @@ export async function executarAPS(
     const resultados: ResultadoPreenchimento[] = [];
     const baixa: Array<{ slot: number; resposta: string }> = [];
 
-    console.log('   [3/4] preenchendo…');
+    progresso('   [3/4] preenchendo…');
     await irParaPagina(page, cfg, attempt, item.cmid, 0);
     for (let p = 0; p < paginas; p++) {
       await aguardarQuestoes(page);
@@ -151,7 +152,7 @@ export async function executarAPS(
     const faltaPiso = cfg.MIN_QUIZ_MINUTES * 60_000 - (Date.now() - t0);
     if (faltaPiso > 0) {
       const seg = Math.round(faltaPiso / 1000);
-      console.log(
+      progresso(
         `   ⏳ aguardando ${Math.floor(seg / 60)}min${String(seg % 60).padStart(2, '0')}s ` +
           `para o piso de ${cfg.MIN_QUIZ_MINUTES}min (MIN_QUIZ_MINUTES) — não está travado`,
       );
@@ -165,11 +166,11 @@ export async function executarAPS(
 
     let enviado = false;
     if (opts.submeter) {
-      console.log('   [4/4] enviando…');
+      progresso('   [4/4] enviando…');
       await enviarTentativa(page, cfg, attempt, item.cmid);
       const c = await confirmarEnvio(page, cfg, item.cmid);
       enviado = c.finalizada;
-      console.log(
+      progresso(
         `   ${c.finalizada ? '✓ ENVIADA' : '⚠ enviou mas o Moodle não confirmou'}` +
           `${c.nota ? ` · nota ${c.nota}` : ''}`,
       );
