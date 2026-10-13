@@ -51,7 +51,7 @@ async function ciclo(): Promise<void> {
   for (const e of r.executadas) {
     console.log(
       `│   ✓ ${e.aps.slice(0, 34).padEnd(34)} ${e.preenchidas}/${e.questoes}` +
-        `  ${e.enviado ? 'ENVIADA' : 'preenchida, não enviada'}`,
+        `  ${e.enviado ? 'ENVIADA' : e.erroEnvio ? 'ABERTA — envio falhou' : 'preenchida, não enviada'}`,
     );
     if (e.baixaConfianca.length > 0) {
       console.log(`│     ⚠ revisar questões: ${e.baixaConfianca.map((b) => b.slot).join(', ')}`);

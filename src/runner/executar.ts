@@ -34,6 +34,8 @@ export type Relatorio = {
   cacheAcertos: number;
   chamadasIA: number;
   enviado: boolean;
+  /** Preenchida mas não enviada: motivo da falha no envio. */
+  erroEnvio?: string;
   segundos: number;
 };
 
@@ -165,16 +167,28 @@ export async function executarAPS(
     if (esperou > 0) logger.info({ esperouMs: esperou }, 'piso de tempo cumprido');
 
     let enviado = false;
+    let erroEnvio: string | undefined;
     if (opts.submeter) {
       progresso('   [4/4] enviando…');
-      await enviarTentativa(page, cfg, attempt, item.cmid);
-      const c = await confirmarEnvio(page, cfg, item.cmid);
-      enviado = c.finalizada;
-      progresso(
-        `   ${c.finalizada ? '✓ ENVIADA' : '⚠ enviou mas o Moodle não confirmou'}` +
-          `${c.nota ? ` · nota ${c.nota}` : ''}`,
-      );
-      logger.warn({ finalizada: c.finalizada, nota: c.nota }, 'tentativa enviada');
+      try {
+        await enviarTentativa(page, cfg, attempt, item.cmid);
+        const c = await confirmarEnvio(page, cfg, item.cmid);
+        enviado = c.finalizada;
+        progresso(
+          `   ${c.finalizada ? '✓ ENVIADA' : '⚠ enviou mas o Moodle não confirmou'}` +
+            `${c.nota ? ` · nota ${c.nota}` : ''}`,
+        );
+        logger.warn({ finalizada: c.finalizada, nota: c.nota }, 'tentativa enviada');
+      } catch (e) {
+        // Falhar no envio NÃO pode apagar o trabalho já feito. Antes, a
+        // exceção subia e a APS caía no balde de "puladas" — o relatório
+        // dizia "1 executada, 7 puladas" quando três haviam sido
+        // preenchidas por completo e duas só não conseguiram enviar.
+        erroEnvio = e instanceof Error ? e.message.split('\n')[0] : String(e);
+        progresso(`   ⚠ preenchida, mas o envio falhou: ${erroEnvio}`);
+        progresso(`     tentativa ${attempt} está ABERTA — envie pelo navegador`);
+        logger.error({ attempt, cmid: item.cmid, err: erroEnvio }, 'envio falhou');
+      }
     }
 
     return {
@@ -190,6 +204,7 @@ export async function executarAPS(
       cacheAcertos: acertosCache,
       chamadasIA: chamadas,
       enviado,
+      ...(erroEnvio ? { erroEnvio } : {}),
       segundos: Math.round((Date.now() - t0) / 1000),
     };
   } finally {

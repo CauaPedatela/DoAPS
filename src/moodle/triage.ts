@@ -48,7 +48,7 @@ export function parseDuracao(txt: string): number | null {
  */
 export async function triar(page: Page, cfg: Config, item: ItemAPS): Promise<Triagem> {
   await page.goto(cfg.MOODLE_URL + PATHS.quizView(item.cmid), {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
   await pause(900);

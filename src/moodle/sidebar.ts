@@ -33,7 +33,7 @@ export async function varrerAPS(
   cursoId: number,
 ): Promise<{ cursoNome: string; itens: ItemAPS[] }> {
   await page.goto(cfg.MOODLE_URL + PATHS.course(cursoId), {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
   await pause(1200);

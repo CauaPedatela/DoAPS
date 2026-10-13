@@ -15,7 +15,7 @@ import { scrub } from '../core/logger.ts';
  */
 export async function abrirTentativa(page: Page, cfg: Config, cmid: number): Promise<number> {
   await page.goto(cfg.MOODLE_URL + PATHS.quizView(cmid), {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
   await pause(1500);
@@ -136,9 +136,18 @@ export async function enviarTentativa(
   cmid: number,
 ): Promise<void> {
   await page.goto(`${cfg.MOODLE_URL}/mod/quiz/summary.php?attempt=${attempt}&cmid=${cmid}`, {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
+
+  // Espera a tabela do resumo existir. `domcontentloaded` devolve com o
+  // esqueleto; ler antes disso enxergaria zero questões salvas e abortaria
+  // um envio perfeitamente válido.
+  await page
+    .locator('table.quizsummaryofattempt')
+    .first()
+    .waitFor({ state: 'attached', timeout: 30_000 })
+    .catch(() => undefined);
 
   // Recusa enviar se alguma questão não estiver salva.
   const naoSalvas = await page
@@ -187,7 +196,7 @@ export async function confirmarEnvio(
   cmid: number,
 ): Promise<{ finalizada: boolean; nota: string | null; estado: string }> {
   await page.goto(cfg.MOODLE_URL + PATHS.quizView(cmid), {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
   const estado = await page.evaluate(() => {

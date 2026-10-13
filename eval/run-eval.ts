@@ -30,7 +30,7 @@ try {
   const page = await login(s.context, cfg);
 
   for (const alvo of ALVOS) {
-    await page.goto(alvo.url + '&showall=1', { waitUntil: 'networkidle', timeout: 90_000 });
+    await page.goto(alvo.url + '&showall=1', { waitUntil: 'domcontentloaded', timeout: 90_000 });
     await page.locator('div.que').first().waitFor({ state: 'attached', timeout: 30_000 });
 
     // Gabarito: o Moodle mostra "A resposta correta é: <texto>" em .rightanswer.

@@ -14,7 +14,7 @@ export type Curso = { id: number; nome: string };
  */
 export async function listarCursos(page: Page, cfg: Config): Promise<Curso[]> {
   await page.goto(cfg.MOODLE_URL + PATHS.myCourses, {
-    waitUntil: 'networkidle',
+    waitUntil: 'domcontentloaded',
     timeout: 60_000,
   });
 

@@ -170,7 +170,10 @@ fonte.onmessage = (ev) => {
       escrever('');
       escrever(`Concluído: ${r.executadas.length} executada(s), ${r.puladas.length} pulada(s)`, 'ok');
       for (const x of r.executadas) {
-        escrever(`  ✓ ${x.aps} — ${x.preenchidas}/${x.questoes}${x.enviado ? ' ENVIADA' : ' (não enviada)'}`, 'ok');
+        const marca = x.enviado ? '✓' : '⚠';
+        const fim = x.enviado ? ' ENVIADA' : (x.erroEnvio ? ' PREENCHIDA — envio falhou, está ABERTA' : ' preenchida, não enviada');
+        escrever(`  ${marca} ${x.aps} — ${x.preenchidas}/${x.questoes}${fim}`, x.enviado ? 'ok' : 'dim');
+        if (x.erroEnvio) escrever(`      motivo: ${x.erroEnvio}`, 'dim');
       }
       for (const x of r.puladas) escrever(`  · APS ${x.numero}: ${x.motivo}`, 'dim');
     }
